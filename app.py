@@ -3,6 +3,13 @@ import pandas as pd
 import plotly.graph_objects as go
 from fastf1 import get_session
 import fastf1
+from plotly_functions import (
+    plot_speed_plotly,
+    plot_longitudinal_acceleration_plotly,
+    plot_throttle_brake_plotly,
+    plot_gear_plotly,
+    plot_drs_plotly
+)
 
 fastf1.Cache.enable_cache('cache')  # Local cache to speed things up
 
@@ -20,27 +27,14 @@ if st.button("Load Data"):
         session = get_session(year, gp, session_type)
         session.load()
         lap = session.laps.pick_driver(driver).pick_fastest()
-        telemetry = lap.get_car_data().add_distance()
+        telemetry_driver = lap.get_car_data().add_distance()
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=telemetry['Distance'],
-            y=telemetry['Speed'],
-            mode='lines',
-            name='Speed',
-            line=dict(color='#FF4C4C'),
-            hovertemplate='Distance: %{x:.0f} m<br>Speed: %{y:.0f} km/h<extra></extra>'
-        ))
+        plot_speed_plotly(telemetry_driver)
+        plot_longitudinal_acceleration_plotly(telemetry_driver)
+        plot_throttle_brake_plotly(telemetry_driver)
+        plot_gear_plotly(telemetry_driver)
+        plot_drs_plotly(telemetry_driver)
 
-        fig.update_layout(
-            template="plotly_dark",
-            title="Speed vs Distance",
-            xaxis_title="Distance (m)",
-            yaxis_title="Speed (km/h)",
-            height=500
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
         st.error(f"Something went wrong: {e}")
