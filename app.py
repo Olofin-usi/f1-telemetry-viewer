@@ -32,7 +32,7 @@ st.write(f"Selected: {year} - {gp}")
 session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 driver = st.text_input("Driver Code (e.g. 'VER')", value="VER")
 
-if st.button("Load Data"):
+if st.button("Load Fastest Lap"):
     try:
         session = get_session(year, gp, session_type)
         session.load()
