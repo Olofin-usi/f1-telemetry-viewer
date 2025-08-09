@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from fastf1 import get_session
 import fastf1
-from  Track_plot import plot_track_map
+from Track_plot import plot_track_map_plotly
 from plotly_functions import (
     plot_speed_plotly,
     plot_longitudinal_acceleration_plotly,
@@ -29,10 +29,8 @@ if st.button("Load Data"):
         session.load()
         lap = session.laps.pick_driver(driver).pick_fastest()
         telemetry_driver = lap.get_car_data().add_distance()
-        
-        
-        plot_track_map(gp,session_type,year,driver, highlight_corners=True, title=None,
-                   color='white')
+
+        plot_track_map_plotly(year, gp, session_type, driver, highlight_corners=True)
         plot_speed_plotly(telemetry_driver)
         plot_longitudinal_acceleration_plotly(telemetry_driver)
         plot_throttle_brake_plotly(telemetry_driver)
