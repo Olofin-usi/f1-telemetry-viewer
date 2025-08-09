@@ -18,8 +18,17 @@ st.set_page_config(layout="wide", page_title="F1 Telemetry Viewer")
 
 st.title("🏎️ F1 Telemetry Visualizer")
 
+# Select Year
 year = st.selectbox("Select Year", list(range(2019, 2025)))
-gp = st.text_input("Enter Grand Prix Name (e.g. 'Monza')", value="Monza")
+
+# Get GP list for that year
+schedule = fastf1.get_event_schedule(year)
+gp_list = schedule['EventName'].unique().tolist()
+
+# Select GP from dropdown
+gp = st.selectbox("Select Grand Prix", gp_list)
+
+st.write(f"Selected: {year} - {gp}")
 session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 driver = st.text_input("Driver Code (e.g. 'VER')", value="VER")
 
