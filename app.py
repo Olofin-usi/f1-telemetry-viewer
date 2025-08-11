@@ -110,45 +110,26 @@ drivers = get_drivers_for_event(year, gp, session_type)
 # Let user select driver
 st.subheader("Select a Driver")
 
-# Option to use dropdown or buttons
-selection_mode = st.radio(
-    "Choose selection method:",
-    ["Dropdown", "Buttons"],
-    horizontal=True
+# Build HTML options with colors
+options_html = ""
+for code, team, color in drivers:
+    label = f"{code} - {team}" if team else code
+    options_html += f'<option value="{code}" style="color:{color};">{label}</option>'
+
+# Render HTML dropdown
+selected_driver_html = st.markdown(
+    f"""
+    <select name="driver" id="driver" style="padding:8px; font-size:16px; border-radius:5px; width:300px;">
+        {options_html}
+    </select>
+    """,
+    unsafe_allow_html=True
 )
 
-if selection_mode == "Dropdown":
-    # Dropdown: show driver and team
-    driver_options = [f"{code} - {team}" if team else code for code, team, _ in drivers]
-    selected_option = st.selectbox("Driver", driver_options)
-    st.session_state.selected_driver = selected_option.split(" - ")[0]
-
-else:
-    # Buttons: HTML method to preserve colors
-    cols = st.columns(4)
-    for i, (code, team, color) in enumerate(drivers):
-        with cols[i % 4]:
-            if st.markdown(
-                f"""
-                <button style="
-                    background-color:{color};
-                    border:none;
-                    color:white;
-                    padding:10px 20px;
-                    text-align:center;
-                    text-decoration:none;
-                    display:inline-block;
-                    font-size:16px;
-                    margin:4px 2px;
-                    cursor:pointer;
-                    border-radius:8px;
-                    width:100%;
-                    font-weight:bold;
-                " onclick="window.parent.postMessage({{'type':'driver_select','code':'{code}'}}, '*')">{code}</button>
-                """,
-                unsafe_allow_html=True
-            ):
-                st.session_state.selected_driver = code
+# This part won't directly update session_state from HTML,
+driver_labels = [f"{code} - {team}" if team else code for code, team, _ in drivers]
+selected_driver = st.selectbox("Driver (no color preview here)", driver_labels)
+st.session_state.selected_driver = selected_driver.split(" - ")[0]
 
 # Load Fastest Lap button
 if st.button("Load Fastest Lap"):
