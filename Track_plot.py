@@ -48,7 +48,7 @@ def plot_track_map_plotly(year=2023, event='Silverstone', session_type='Q',
         x=rotated_track[:, 0],
         y=rotated_track[:, 1],
         mode='lines',
-        line=dict(color='white', width=3),
+        line=dict(color='white', width=4),
         name='Track'
     ))
 
