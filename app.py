@@ -61,6 +61,8 @@ if st.button("Load Fastest Lap"):
             plot_gear_plotly(telemetry_driver)
             plot_drs_plotly(telemetry_driver)
             
+            progress.empty()
+            
     except Exception as e:
         st.error(f"Something went wrong: {e}")
 
