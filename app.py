@@ -35,7 +35,7 @@ driver = st.text_input("Driver Code (e.g. 'VER')", value="VER")
 if st.button("Load Fastest Lap"):
     try:
         # Spinner to indicate loading process
-        with st.spinner("Fetching fastest lap data..."):
+        with st.spinner("Fetching data..."):
             progress = st.progress(0)
 
             # Step 1: Load session
@@ -51,7 +51,8 @@ if st.button("Load Fastest Lap"):
             # Step 3: Get telemetry
             telemetry_driver = lap.get_car_data().add_distance()
             progress.progress(85)
-
+            progress.progress(100)
+        
             # Step 4: Plot all visuals
             plot_track_map_plotly(year, gp, session_type, driver, highlight_corners=True)
             plot_speed_plotly(telemetry_driver)
@@ -59,10 +60,7 @@ if st.button("Load Fastest Lap"):
             plot_throttle_brake_plotly(telemetry_driver)
             plot_gear_plotly(telemetry_driver)
             plot_drs_plotly(telemetry_driver)
-            progress.progress(100)
-
-        st.success("✅ Telemetry loaded successfully!")
-
+            
     except Exception as e:
         st.error(f"Something went wrong: {e}")
 
