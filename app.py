@@ -12,6 +12,19 @@ from plotly_functions import (
     plot_drs_plotly
 )
 
+TEAM_COLORS = {
+    'Mercedes': '#00D2BE',
+    'Ferrari': '#DC0000',
+    'Red Bull': '#1E41FF',
+    'Alpine': '#0090FF',
+    'McLaren': '#FF8700',
+    'Alfa Romeo': '#900000',
+    'Aston Martin': '#006F62',
+    'Haas': '#FFFFFF',
+    'AlphaTauri': '#2B4562',
+    'Williams': '#005AFF',
+}
+
 fastf1.Cache.enable_cache('cache')  # Local cache to speed things up
 
 st.set_page_config(layout="wide", page_title="F1 Telemetry Viewer")
@@ -30,34 +43,65 @@ st.write(f"Selected: {year} - {gp}")
 session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 
 def get_drivers_for_event(year, gp, session_type):
-    """Return list of (driver_code, team_name, team_color) for the selected event.
-       This is robust to different FastF1 column names.
+    """
+    Return list of (driver_code, team_name, team_color) for the selected event.
+    Works with all FastF1 versions and falls back to a safe default color.
     """
     session = fastf1.get_session(year, gp, session_type)
     session.load()
     results = session.results  # pandas DataFrame
 
-    # detect likely column names (fall back to None if not present)
+    # Detect possible column names
     team_col = next((c for c in ('Team', 'TeamName', 'Constructor') if c in results.columns), None)
     code_col = next((c for c in ('Abbreviation', 'Abbr', 'Driver') if c in results.columns), None)
 
+    # Static fallback color map (covers most recent seasons)
+    FALLBACK_TEAM_COLORS = {
+        'Mercedes': '#00D2BE',
+        'Ferrari': '#DC0000',
+        'Red Bull': '#1E41FF',
+        'Alpine': '#0090FF',
+        'McLaren': '#FF8700',
+        'Alfa Romeo': '#900000',
+        'Aston Martin': '#006F62',
+        'Haas': '#FFFFFF',
+        'AlphaTauri': '#2B4562',
+        'Alpha Tauri': '#2B4562',  # Some seasons have a space
+        'Williams': '#005AFF'
+    }
+
+    # Try importing new FastF1 team_color function
+    try:
+        from fastf1.plotting import team_color as get_team_color
+    except ImportError:
+        get_team_color = None
+
     drivers = []
     for _, row in results.iterrows():
-        # get driver code / abbreviation (fallback to first 3 chars of 'Driver' if needed)
+        # Driver code
         code = row.get(code_col) if code_col else None
         if (pd.isna(code) or code is None) and 'Driver' in results.columns:
             drv = row.get('Driver')
             code = (str(drv)[:3].upper()) if pd.notna(drv) else None
 
-        # get team name safely
+        # Team name
         team_name = row.get(team_col) if team_col else None
         if pd.isna(team_name):
             team_name = None
 
-        # get team color from fastf1 plotting dict; default to gray
-        team_color = plotting.TEAM_COLORS.get(team_name, "#999999") if team_name else "#999999"
+        # Team color
+        if team_name:
+            if get_team_color:  # Use FastF1 function if available
+                try:
+                    team_color_hex = get_team_color(team_name)
+                except Exception:
+                    team_color_hex = FALLBACK_TEAM_COLORS.get(team_name, "#999999")
+            else:  # Fall back to static dict
+                team_color_hex = FALLBACK_TEAM_COLORS.get(team_name, "#999999")
+        else:
+            team_color_hex = "#999999"
 
-        drivers.append((code, team_name, team_color))
+        drivers.append((code, team_name, team_color_hex))
 
     return drivers
 
