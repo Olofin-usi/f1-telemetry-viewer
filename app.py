@@ -118,31 +118,37 @@ selection_mode = st.radio(
 )
 
 if selection_mode == "Dropdown":
-    # Dropdown selection
-    driver_codes = [code for code, _, _ in drivers]
-    selected_driver = st.selectbox("Driver", driver_codes)
-    st.session_state.selected_driver = selected_driver
+    # Dropdown: show driver and team
+    driver_options = [f"{code} - {team}" if team else code for code, team, _ in drivers]
+    selected_option = st.selectbox("Driver", driver_options)
+    st.session_state.selected_driver = selected_option.split(" - ")[0]
 
 else:
-    # Button selection with team colors
+    # Buttons: HTML method to preserve colors
     cols = st.columns(4)
     for i, (code, team, color) in enumerate(drivers):
         with cols[i % 4]:
-            if st.button(code, key=f"driver_{code}"):
+            if st.markdown(
+                f"""
+                <button style="
+                    background-color:{color};
+                    border:none;
+                    color:white;
+                    padding:10px 20px;
+                    text-align:center;
+                    text-decoration:none;
+                    display:inline-block;
+                    font-size:16px;
+                    margin:4px 2px;
+                    cursor:pointer;
+                    border-radius:8px;
+                    width:100%;
+                    font-weight:bold;
+                " onclick="window.parent.postMessage({{'type':'driver_select','code':'{code}'}}, '*')">{code}</button>
+                """,
+                unsafe_allow_html=True
+            ):
                 st.session_state.selected_driver = code
-        # Inline CSS for button color
-        st.markdown(
-            f"""
-            <style>
-            div[data-testid="stButton"] button[kind="secondary"][key="driver_{code}"] {{
-                background-color: {color};
-                color: white;
-                font-weight: bold;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
 
 # Load Fastest Lap button
 if st.button("Load Fastest Lap"):
