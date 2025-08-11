@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from fastf1 import get_session
+from fastf1 import get_session, plotting
 import fastf1
 from Track_plot import plot_track_map_plotly
 from plotly_functions import (
@@ -29,17 +29,36 @@ gp = st.selectbox("Select Grand Prix", gp_list)
 st.write(f"Selected: {year} - {gp}")
 session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 
-# Get driver list for selected event
-@st.cache_data
 def get_drivers_for_event(year, gp, session_type):
-    """Fetch drivers, their teams, and team colors for the selected event."""
+    """Return list of (driver_code, team_name, team_color) for the selected event.
+       This is robust to different FastF1 column names.
+    """
     session = fastf1.get_session(year, gp, session_type)
     session.load()
+    results = session.results  # pandas DataFrame
+
+    # detect likely column names (fall back to None if not present)
+    team_col = next((c for c in ('Team', 'TeamName', 'Constructor') if c in results.columns), None)
+    code_col = next((c for c in ('Abbreviation', 'Abbr', 'Driver') if c in results.columns), None)
+
     drivers = []
-    for drv in session.results.itertuples():
-        team_name = drv.TeamName
-        team_color = plotting.team_color(team_name)
-        drivers.append((drv.Abbreviation, team_name, team_color))
+    for _, row in results.iterrows():
+        # get driver code / abbreviation (fallback to first 3 chars of 'Driver' if needed)
+        code = row.get(code_col) if code_col else None
+        if (pd.isna(code) or code is None) and 'Driver' in results.columns:
+            drv = row.get('Driver')
+            code = (str(drv)[:3].upper()) if pd.notna(drv) else None
+
+        # get team name safely
+        team_name = row.get(team_col) if team_col else None
+        if pd.isna(team_name):
+            team_name = None
+
+        # get team color from fastf1 plotting dict; default to gray
+        team_color = plotting.TEAM_COLORS.get(team_name, "#999999") if team_name else "#999999"
+
+        drivers.append((code, team_name, team_color))
+
     return drivers
 
 drivers = get_drivers_for_event(year, gp, session_type)
