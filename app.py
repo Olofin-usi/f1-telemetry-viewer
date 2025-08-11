@@ -109,24 +109,40 @@ drivers = get_drivers_for_event(year, gp, session_type)
 
 # Let user select driver
 st.subheader("Select a Driver")
-cols = st.columns(4)
-for i, (code, team, color) in enumerate(drivers):
-    with cols[i % 4]:
-        if st.button(code, key=f"driver_{code}"):
-            st.session_state.selected_driver = code
-    # CSS to color buttons
-    st.markdown(
-        f"""
-        <style>
-        div[data-testid="stButton"] button[kind="secondary"] {{
-            background-color: {color};
-            color: white;
-            font-weight: bold;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+
+# Option to use dropdown or buttons
+selection_mode = st.radio(
+    "Choose selection method:",
+    ["Dropdown", "Buttons"],
+    horizontal=True
+)
+
+if selection_mode == "Dropdown":
+    # Dropdown selection
+    driver_codes = [code for code, _, _ in drivers]
+    selected_driver = st.selectbox("Driver", driver_codes)
+    st.session_state.selected_driver = selected_driver
+
+else:
+    # Button selection with team colors
+    cols = st.columns(4)
+    for i, (code, team, color) in enumerate(drivers):
+        with cols[i % 4]:
+            if st.button(code, key=f"driver_{code}"):
+                st.session_state.selected_driver = code
+        # Inline CSS for button color
+        st.markdown(
+            f"""
+            <style>
+            div[data-testid="stButton"] button[kind="secondary"][key="driver_{code}"] {{
+                background-color: {color};
+                color: white;
+                font-weight: bold;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
 # Load Fastest Lap button
 if st.button("Load Fastest Lap"):
@@ -162,7 +178,6 @@ if st.button("Load Fastest Lap"):
                 progress.progress(100)
                 progress.empty()
 
-            st.success(f"✅ Telemetry loaded for {st.session_state.selected_driver}")
 
         except Exception as e:
             st.error(f"Something went wrong: {e}")
