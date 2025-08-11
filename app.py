@@ -34,10 +34,23 @@ driver = st.text_input("Driver Code (e.g. 'VER')", value="VER")
 
 if st.button("Load Fastest Lap"):
     try:
-        session = get_session(year, gp, session_type)
-        session.load()
-        lap = session.laps.pick_driver(driver).pick_fastest()
-        telemetry_driver = lap.get_car_data().add_distance()
+                # Spinner to indicate loading process
+        with st.spinner("Fetching fastest lap data..."):
+            progress = st.progress(0)
+
+            # Step 1: Load session
+            session = get_session(year, gp, session_type)
+            progress.progress(20)
+            session.load()
+            progress.progress(50)
+
+            # Step 2: Get fastest lap
+            lap = session.laps.pick_driver(driver).pick_fastest()
+            progress.progress(70)
+
+            # Step 3: Get telemetry
+            telemetry_driver = lap.get_car_data().add_distance()
+            progress.progress(85)
 
         plot_track_map_plotly(year, gp, session_type, driver, highlight_corners=True)
         plot_speed_plotly(telemetry_driver)
@@ -45,6 +58,9 @@ if st.button("Load Fastest Lap"):
         plot_throttle_brake_plotly(telemetry_driver)
         plot_gear_plotly(telemetry_driver)
         plot_drs_plotly(telemetry_driver)
+        progress.progress(100)
+
+        st.success("✅ Telemetry loaded successfully!")
 
 
     except Exception as e:
