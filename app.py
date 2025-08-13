@@ -31,15 +31,13 @@ session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 
 def get_drivers_for_event(year, gp, session_type):
     """
-    Fast: Load only results, not full telemetry.
-    Returns list of (driver_code, team_name, team_color).
+    Fast driver list using only classification data.
+    Works without loading full telemetry.
     """
     session = fastf1.get_session(year, gp, session_type)
-    session.load(results=True)  # Only load results, fast
-    results = session.results
 
-    team_col = next((c for c in ('Team', 'TeamName', 'Constructor') if c in results.columns), None)
-    code_col = next((c for c in ('Abbreviation', 'Abbr', 'Driver') if c in results.columns), None)
+    # This fetches only classification data (fast)
+    classification = session.get_classification()
 
     FALLBACK_TEAM_COLORS = {
         'Mercedes': '#00D2BE',
@@ -61,13 +59,14 @@ def get_drivers_for_event(year, gp, session_type):
         get_team_color = None
 
     drivers = []
-    for _, row in results.iterrows():
-        code = row.get(code_col) if code_col else None
-        if (pd.isna(code) or code is None) and 'Driver' in results.columns:
-            drv = row.get('Driver')
-            code = (str(drv)[:3].upper()) if pd.notna(drv) else None
+    for _, row in classification.iterrows():
+        code = row.get('Abbreviation') or row.get('Driver')
+        if pd.notna(code):
+            code = str(code).upper()[:3]
+        else:
+            code = None
 
-        team_name = row.get(team_col) if team_col else None
+        team_name = row.get('TeamName') or row.get('Constructor')
         if pd.isna(team_name):
             team_name = None
 
