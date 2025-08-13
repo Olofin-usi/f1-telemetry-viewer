@@ -2,6 +2,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import fastf1
+import json
+import os
 from Track_plot import plot_track_map_plotly
 from plotly_functions import (
     plot_speed_plotly,
@@ -14,30 +16,41 @@ from plotly_functions import (
 # Enable cache
 fastf1.Cache.enable_cache('cache')
 
-# Page settings
-st.set_page_config(layout="wide", page_title="F1 Telemetry Viewer")
-st.title("🏎️ F1 Telemetry Visualizer")
+# --- Persistent driver DB file ---
+DRIVER_DB_FILE = "driver_db.json"
 
-# Select Year
-year = st.selectbox("Select Year", list(range(2019, 2025)))
+# Load DB from disk if exists
+if os.path.exists(DRIVER_DB_FILE):
+    with open(DRIVER_DB_FILE, "r") as f:
+        DRIVER_DB = json.load(f)
+else:
+    DRIVER_DB = {}
 
-# Get GP list for that year
-gp_list = fastf1.get_event_schedule(year)['EventName'].unique().tolist()
-gp = st.selectbox("Select Grand Prix", gp_list)
+def save_driver_db():
+    with open(DRIVER_DB_FILE, "w") as f:
+        json.dump(DRIVER_DB, f)
 
-st.write(f"Selected: {year} - {gp}")
-session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
-
-
+# --- Static + cached driver list function ---
 def get_drivers_for_event(year, gp, session_type):
     """
-    Fast driver list using only classification data.
-    Works without loading full telemetry.
+    Returns drivers from a persistent DB if available.
+    Falls back to placeholder to keep dropdown instant.
     """
-    session = fastf1.get_session(year, gp, session_type)
+    key = f"{year}::{gp}::{session_type}"
+    if key in DRIVER_DB:
+        return DRIVER_DB[key]
+    # Not in static DB — return placeholder
+    return [("???", "Unknown", "#999999")]
 
-    # This fetches only classification data (fast)
-    classification = session.get_classification()
+def fetch_and_cache_drivers(year, gp, session_type):
+    """Fetch real drivers from FastF1, save to DB."""
+    session = fastf1.get_session(year, gp, session_type)
+    session.load()
+
+    try:
+        from fastf1.plotting import team_color as get_team_color
+    except ImportError:
+        get_team_color = None
 
     FALLBACK_TEAM_COLORS = {
         'Mercedes': '#00D2BE',
@@ -53,40 +66,40 @@ def get_drivers_for_event(year, gp, session_type):
         'Williams': '#005AFF'
     }
 
-    try:
-        from fastf1.plotting import team_color as get_team_color
-    except ImportError:
-        get_team_color = None
-
     drivers = []
-    for _, row in classification.iterrows():
-        code = row.get('Abbreviation') or row.get('Driver')
-        if pd.notna(code):
-            code = str(code).upper()[:3]
+    for drv in session.drivers:
+        drv_data = session.get_driver(drv)
+        code = drv_data.get("Abbreviation", "").upper()
+        team = drv_data.get("TeamName", "")
+        if get_team_color:
+            try:
+                color = get_team_color(team)
+            except Exception:
+                color = FALLBACK_TEAM_COLORS.get(team, "#999999")
         else:
-            code = None
+            color = FALLBACK_TEAM_COLORS.get(team, "#999999")
+        drivers.append((code, team, color))
 
-        team_name = row.get('TeamName') or row.get('Constructor')
-        if pd.isna(team_name):
-            team_name = None
-
-        if team_name:
-            if get_team_color:
-                try:
-                    team_color_hex = get_team_color(team_name)
-                except Exception:
-                    team_color_hex = FALLBACK_TEAM_COLORS.get(team_name, "#999999")
-            else:
-                team_color_hex = FALLBACK_TEAM_COLORS.get(team_name, "#999999")
-        else:
-            team_color_hex = "#999999"
-
-        drivers.append((code, team_name, team_color_hex))
-
+    key = f"{year}::{gp}::{session_type}"
+    DRIVER_DB[key] = drivers
+    save_driver_db()
     return drivers
 
+# --- Page settings ---
+st.set_page_config(layout="wide", page_title="F1 Telemetry Viewer")
+st.title("🏎️ F1 Telemetry Visualizer")
 
-# Get drivers quickly
+# Select Year
+year = st.selectbox("Select Year", list(range(2019, 2025)))
+
+# Get GP list for that year
+gp_list = fastf1.get_event_schedule(year)['EventName'].unique().tolist()
+gp = st.selectbox("Select Grand Prix", gp_list)
+
+st.write(f"Selected: {year} - {gp}")
+session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
+
+# Get drivers (instant if cached)
 drivers = get_drivers_for_event(year, gp, session_type)
 
 # Default selection
@@ -95,12 +108,10 @@ if "driver_selection" not in st.session_state:
 
 # --- Colored HTML dropdown ---
 st.subheader("Select a Driver")
-
 options_html = "".join(
     [f"<option value='{code}' style='color:{color}; font-weight:bold;' {'selected' if code == st.session_state.driver_selection else ''}>{code}</option>"
      for code, _, color in drivers]
 )
-
 dropdown_html = f"""
 <select id="driver_select" style="
     padding:8px; 
@@ -121,26 +132,26 @@ dropdown_html = f"""
     }});
 </script>
 """
-
 components.html(dropdown_html, height=50)
-
-# Handle incoming selection
-def handle_selection():
-    import streamlit.runtime.scriptrunner as scriptrunner
-    ctx = scriptrunner.get_script_run_ctx()
-    # This is a placeholder — in production, you’d use custom components or query params
 
 # --- Load Fastest Lap ---
 if st.button("Load Fastest Lap"):
     selected_driver = st.session_state.driver_selection
-    if not selected_driver:
-        st.warning("Please select a driver first.")
+    if not selected_driver or selected_driver == "???":
+        st.info("Loading real driver list...")
+        with st.spinner("Fetching driver data..."):
+            try:
+                drivers = fetch_and_cache_drivers(year, gp, session_type)
+                st.session_state.driver_selection = drivers[0][0]
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Something went wrong: {e}")
     else:
         try:
             with st.spinner("Fetching data..."):
                 progress = st.progress(0)
                 session = fastf1.get_session(year, gp, session_type)
-                session.load()  # Full load now
+                session.load()
                 progress.progress(30)
 
                 lap = session.laps.pick_driver(selected_driver).pick_fastest()
