@@ -33,14 +33,16 @@ def save_driver_db():
 # --- Static + cached driver list function ---
 def get_drivers_for_event(year, gp, session_type):
     """
-    Returns drivers from a persistent DB if available.
-    Falls back to placeholder to keep dropdown instant.
+    Returns drivers from DB if available.
+    If missing, fetch once and cache for all session types of the GP/year.
     """
     key = f"{year}::{gp}::{session_type}"
     if key in DRIVER_DB:
         return DRIVER_DB[key]
-    # Not in static DB — return placeholder
-    return [("???", "Unknown", "#999999")]
+    
+    # Auto-fetch if not found
+    drivers = fetch_and_cache_drivers(year, gp, session_type)
+    return drivers
 
 def fetch_and_cache_drivers(year, gp, session_type):
     """Fetch real drivers from FastF1, save to DB."""
