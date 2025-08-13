@@ -80,10 +80,18 @@ def fetch_and_cache_drivers(year, gp, session_type):
             color = FALLBACK_TEAM_COLORS.get(team, "#999999")
         drivers.append((code, team, color))
 
-    key = f"{year}::{gp}::{session_type}"
-    DRIVER_DB[key] = drivers
+    # 🔹 REPLACE this old part:
+    # key = f"{year}::{gp}::{session_type}"
+    # DRIVER_DB[key] = drivers
+
+    # 🔹 WITH this new part:
+    for sess_type in ["Q", "R", "FP1", "FP2", "FP3"]:
+        key = f"{year}::{gp}::{sess_type}"
+        DRIVER_DB[key] = drivers
+
     save_driver_db()
     return drivers
+
 
 # --- Page settings ---
 st.set_page_config(layout="wide", page_title="F1 Telemetry Viewer")
