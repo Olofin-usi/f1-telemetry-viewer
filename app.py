@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from fastf1 import get_session, plotting
 import fastf1
 from Track_plot import plot_track_map_plotly
 from plotly_functions import (
@@ -12,23 +11,11 @@ from plotly_functions import (
     plot_drs_plotly
 )
 
-TEAM_COLORS = {
-    'Mercedes': '#00D2BE',
-    'Ferrari': '#DC0000',
-    'Red Bull': '#1E41FF',
-    'Alpine': '#0090FF',
-    'McLaren': '#FF8700',
-    'Alfa Romeo': '#900000',
-    'Aston Martin': '#006F62',
-    'Haas': '#FFFFFF',
-    'AlphaTauri': '#2B4562',
-    'Williams': '#005AFF',
-}
+# Enable cache for FastF1
+fastf1.Cache.enable_cache('cache')
 
-fastf1.Cache.enable_cache('cache')  # Local cache to speed things up
-
+# Page settings
 st.set_page_config(layout="wide", page_title="F1 Telemetry Viewer")
-
 st.title("🏎️ F1 Telemetry Visualizer")
 
 # Select Year
@@ -36,11 +23,11 @@ year = st.selectbox("Select Year", list(range(2019, 2025)))
 
 # Get GP list for that year
 gp_list = fastf1.get_event_schedule(year)['EventName'].unique().tolist()
-# Select GP from dropdown
 gp = st.selectbox("Select Grand Prix", gp_list)
 
 st.write(f"Selected: {year} - {gp}")
 session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
+
 
 def get_drivers_for_event(year, gp, session_type):
     """
@@ -55,7 +42,6 @@ def get_drivers_for_event(year, gp, session_type):
     team_col = next((c for c in ('Team', 'TeamName', 'Constructor') if c in results.columns), None)
     code_col = next((c for c in ('Abbreviation', 'Abbr', 'Driver') if c in results.columns), None)
 
-    # Static fallback color map (covers most recent seasons)
     FALLBACK_TEAM_COLORS = {
         'Mercedes': '#00D2BE',
         'Ferrari': '#DC0000',
@@ -66,11 +52,10 @@ def get_drivers_for_event(year, gp, session_type):
         'Aston Martin': '#006F62',
         'Haas': '#FFFFFF',
         'AlphaTauri': '#2B4562',
-        'Alpha Tauri': '#2B4562',  # Some seasons have a space
+        'Alpha Tauri': '#2B4562',
         'Williams': '#005AFF'
     }
 
-    # Try importing new FastF1 team_color function
     try:
         from fastf1.plotting import team_color as get_team_color
     except ImportError:
@@ -91,12 +76,12 @@ def get_drivers_for_event(year, gp, session_type):
 
         # Team color
         if team_name:
-            if get_team_color:  # Use FastF1 function if available
+            if get_team_color:
                 try:
                     team_color_hex = get_team_color(team_name)
                 except Exception:
                     team_color_hex = FALLBACK_TEAM_COLORS.get(team_name, "#999999")
-            else:  # Fall back to static dict
+            else:
                 team_color_hex = FALLBACK_TEAM_COLORS.get(team_name, "#999999")
         else:
             team_color_hex = "#999999"
@@ -105,33 +90,32 @@ def get_drivers_for_event(year, gp, session_type):
 
     return drivers
 
+
+# Get drivers list
 drivers = get_drivers_for_event(year, gp, session_type)
 
-# Let user select driver
+# --- Clean F1Tempo-style Driver Dropdown ---
 st.subheader("Select a Driver")
 
-# Build HTML options with colors
-options_html = ""
-for code, team, color in drivers:
-    label = f"{code} - {team}" if team else code
-    options_html += f'<option value="{code}" style="color:{color};">{label}</option>'
+# Build HTML-colored labels
+driver_labels_html = [
+    f"<span style='color:{color}; font-weight:bold;'>{code}</span>"
+    for code, _, color in drivers
+]
+driver_map = {html: code for html, (code, _, _) in zip(driver_labels_html, drivers)}
 
-# Render HTML dropdown
-selected_driver_html = st.markdown(
-    f"""
-    <select name="driver" id="driver" style="padding:8px; font-size:16px; border-radius:5px; width:300px;">
-        {options_html}
-    </select>
-    """,
-    unsafe_allow_html=True
+# Streamlit selectbox with HTML labels
+selected_driver_html = st.selectbox(
+    "Drivers...",
+    driver_labels_html,
+    format_func=lambda x: x,
+    label_visibility="collapsed"
 )
 
-# This part won't directly update session_state from HTML,
-driver_labels = [f"{code} - {team}" if team else code for code, team, _ in drivers]
-selected_driver = st.selectbox("Driver (no color preview here)", driver_labels)
-st.session_state.selected_driver = selected_driver.split(" - ")[0]
+# Store selected driver code
+st.session_state.selected_driver = driver_map[selected_driver_html]
 
-# Load Fastest Lap button
+# --- Load Fastest Lap Button ---
 if st.button("Load Fastest Lap"):
     if "selected_driver" not in st.session_state:
         st.warning("Please select a driver first.")
@@ -146,7 +130,7 @@ if st.button("Load Fastest Lap"):
                 session.load()
                 progress.progress(50)
 
-                # Get fastest lap for selected driver
+                # Get fastest lap
                 lap = session.laps.pick_driver(st.session_state.selected_driver).pick_fastest()
                 progress.progress(70)
 
@@ -154,7 +138,7 @@ if st.button("Load Fastest Lap"):
                 telemetry_driver = lap.get_car_data().add_distance()
                 progress.progress(85)
 
-                # Plot all visuals
+                # Plot visuals
                 plot_track_map_plotly(year, gp, session_type, st.session_state.selected_driver, highlight_corners=True)
                 plot_speed_plotly(telemetry_driver)
                 plot_longitudinal_acceleration_plotly(telemetry_driver)
@@ -164,7 +148,6 @@ if st.button("Load Fastest Lap"):
 
                 progress.progress(100)
                 progress.empty()
-
 
         except Exception as e:
             st.error(f"Something went wrong: {e}")
