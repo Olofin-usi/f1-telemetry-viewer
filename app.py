@@ -143,7 +143,7 @@ if st.button("Load Fastest Lap"):
             try:
                 drivers = fetch_and_cache_drivers(year, gp, session_type)
                 st.session_state.driver_selection = drivers[0][0]
-                st.experimental_rerun()
+                st.rerun()
             except Exception as e:
                 st.error(f"Something went wrong: {e}")
     else:
