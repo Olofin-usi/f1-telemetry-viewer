@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import fastf1
 from Track_plot import plot_track_map_plotly
@@ -30,11 +31,12 @@ session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 
 def get_drivers_for_event(year, gp, session_type):
     """
-    Return list of (driver_code, team_name, team_color) for the selected event.
+    Fast: Load only results, not full telemetry.
+    Returns list of (driver_code, team_name, team_color).
     """
     session = fastf1.get_session(year, gp, session_type)
-    session.load()
-    results = session.results  # pandas DataFrame
+    session.load(results=True)  # Only load results, fast
+    results = session.results
 
     team_col = next((c for c in ('Team', 'TeamName', 'Constructor') if c in results.columns), None)
     code_col = next((c for c in ('Abbreviation', 'Abbr', 'Driver') if c in results.columns), None)
@@ -85,20 +87,22 @@ def get_drivers_for_event(year, gp, session_type):
     return drivers
 
 
+# Get drivers quickly
 drivers = get_drivers_for_event(year, gp, session_type)
 
-# --- F1Tempo-style colored HTML dropdown ---
+# Default selection
+if "driver_selection" not in st.session_state:
+    st.session_state.driver_selection = drivers[0][0] if drivers else ""
+
+# --- Colored HTML dropdown ---
 st.subheader("Select a Driver")
 
 options_html = "".join(
-    [f"<option value='{code}' style='color:{color}; font-weight:bold;'>{code}</option>"
+    [f"<option value='{code}' style='color:{color}; font-weight:bold;' {'selected' if code == st.session_state.driver_selection else ''}>{code}</option>"
      for code, _, color in drivers]
 )
 
-# Default selection
-default_code = drivers[0][0] if drivers else ""
-
-html_dropdown = f"""
+dropdown_html = f"""
 <select id="driver_select" style="
     padding:8px; 
     font-size:16px; 
@@ -111,25 +115,21 @@ html_dropdown = f"""
 </select>
 
 <script>
-const driverSelect = document.getElementById('driver_select');
-driverSelect.addEventListener('change', function() {{
-    const selectedValue = this.value;
-    fetch('/_stcore/_streamlit_internal_update', {{
-        method: 'POST',
-        headers: {{
-            'Content-Type': 'application/json'
-        }},
-        body: JSON.stringify({{'driver_selection': selectedValue}})
+    const selectEl = document.getElementById("driver_select");
+    selectEl.addEventListener("change", function() {{
+        const selected = selectEl.value;
+        window.parent.postMessage({{"type": "driver_selection", "value": selected}}, "*");
     }});
-}});
 </script>
 """
 
-st.markdown(html_dropdown, unsafe_allow_html=True)
+components.html(dropdown_html, height=50)
 
-# Read driver selection from widget state
-if "driver_selection" not in st.session_state:
-    st.session_state.driver_selection = default_code
+# Handle incoming selection
+def handle_selection():
+    import streamlit.runtime.scriptrunner as scriptrunner
+    ctx = scriptrunner.get_script_run_ctx()
+    # This is a placeholder — in production, you’d use custom components or query params
 
 # --- Load Fastest Lap ---
 if st.button("Load Fastest Lap"):
@@ -141,15 +141,14 @@ if st.button("Load Fastest Lap"):
             with st.spinner("Fetching data..."):
                 progress = st.progress(0)
                 session = fastf1.get_session(year, gp, session_type)
-                progress.progress(20)
-                session.load()
-                progress.progress(50)
+                session.load()  # Full load now
+                progress.progress(30)
 
                 lap = session.laps.pick_driver(selected_driver).pick_fastest()
-                progress.progress(70)
+                progress.progress(60)
 
                 telemetry_driver = lap.get_car_data().add_distance()
-                progress.progress(85)
+                progress.progress(80)
 
                 plot_track_map_plotly(year, gp, session_type, selected_driver, highlight_corners=True)
                 plot_speed_plotly(telemetry_driver)
