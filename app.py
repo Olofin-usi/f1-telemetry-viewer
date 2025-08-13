@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import fastf1
 from Track_plot import plot_track_map_plotly
 from plotly_functions import (
@@ -11,7 +10,7 @@ from plotly_functions import (
     plot_drs_plotly
 )
 
-# Enable cache for FastF1
+# Enable cache
 fastf1.Cache.enable_cache('cache')
 
 # Page settings
@@ -32,13 +31,11 @@ session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 def get_drivers_for_event(year, gp, session_type):
     """
     Return list of (driver_code, team_name, team_color) for the selected event.
-    Works with all FastF1 versions and falls back to a safe default color.
     """
     session = fastf1.get_session(year, gp, session_type)
     session.load()
     results = session.results  # pandas DataFrame
 
-    # Detect possible column names
     team_col = next((c for c in ('Team', 'TeamName', 'Constructor') if c in results.columns), None)
     code_col = next((c for c in ('Abbreviation', 'Abbr', 'Driver') if c in results.columns), None)
 
@@ -63,18 +60,15 @@ def get_drivers_for_event(year, gp, session_type):
 
     drivers = []
     for _, row in results.iterrows():
-        # Driver code
         code = row.get(code_col) if code_col else None
         if (pd.isna(code) or code is None) and 'Driver' in results.columns:
             drv = row.get('Driver')
             code = (str(drv)[:3].upper()) if pd.notna(drv) else None
 
-        # Team name
         team_name = row.get(team_col) if team_col else None
         if pd.isna(team_name):
             team_name = None
 
-        # Team color
         if team_name:
             if get_team_color:
                 try:
@@ -91,55 +85,73 @@ def get_drivers_for_event(year, gp, session_type):
     return drivers
 
 
-# Get drivers list
 drivers = get_drivers_for_event(year, gp, session_type)
 
-# --- Clean F1Tempo-style Driver Dropdown ---
+# --- F1Tempo-style colored HTML dropdown ---
 st.subheader("Select a Driver")
 
-# Build HTML-colored labels
-driver_labels_html = [
-    f"<span style='color:{color}; font-weight:bold;'>{code}</span>"
-    for code, _, color in drivers
-]
-driver_map = {html: code for html, (code, _, _) in zip(driver_labels_html, drivers)}
-
-# Streamlit selectbox with HTML labels
-selected_driver_html = st.selectbox(
-    "Drivers...",
-    driver_labels_html,
-    format_func=lambda x: x,
-    label_visibility="collapsed"
+options_html = "".join(
+    [f"<option value='{code}' style='color:{color}; font-weight:bold;'>{code}</option>"
+     for code, _, color in drivers]
 )
 
-# Store selected driver code
-st.session_state.selected_driver = driver_map[selected_driver_html]
+# Default selection
+default_code = drivers[0][0] if drivers else ""
 
-# --- Load Fastest Lap Button ---
+html_dropdown = f"""
+<select id="driver_select" style="
+    padding:8px; 
+    font-size:16px; 
+    border-radius:5px; 
+    width:120px;
+    background-color:#111;
+    color:white;
+">
+    {options_html}
+</select>
+
+<script>
+const driverSelect = document.getElementById('driver_select');
+driverSelect.addEventListener('change', function() {{
+    const selectedValue = this.value;
+    fetch('/_stcore/_streamlit_internal_update', {{
+        method: 'POST',
+        headers: {{
+            'Content-Type': 'application/json'
+        }},
+        body: JSON.stringify({{'driver_selection': selectedValue}})
+    }});
+}});
+</script>
+"""
+
+st.markdown(html_dropdown, unsafe_allow_html=True)
+
+# Read driver selection from widget state
+if "driver_selection" not in st.session_state:
+    st.session_state.driver_selection = default_code
+
+# --- Load Fastest Lap ---
 if st.button("Load Fastest Lap"):
-    if "selected_driver" not in st.session_state:
+    selected_driver = st.session_state.driver_selection
+    if not selected_driver:
         st.warning("Please select a driver first.")
     else:
         try:
             with st.spinner("Fetching data..."):
                 progress = st.progress(0)
-
-                # Load session
                 session = fastf1.get_session(year, gp, session_type)
                 progress.progress(20)
                 session.load()
                 progress.progress(50)
 
-                # Get fastest lap
-                lap = session.laps.pick_driver(st.session_state.selected_driver).pick_fastest()
+                lap = session.laps.pick_driver(selected_driver).pick_fastest()
                 progress.progress(70)
 
-                # Get telemetry
                 telemetry_driver = lap.get_car_data().add_distance()
                 progress.progress(85)
 
-                # Plot visuals
-                plot_track_map_plotly(year, gp, session_type, st.session_state.selected_driver, highlight_corners=True)
+                plot_track_map_plotly(year, gp, session_type, selected_driver, highlight_corners=True)
                 plot_speed_plotly(telemetry_driver)
                 plot_longitudinal_acceleration_plotly(telemetry_driver)
                 plot_throttle_brake_plotly(telemetry_driver)
@@ -148,6 +160,5 @@ if st.button("Load Fastest Lap"):
 
                 progress.progress(100)
                 progress.empty()
-
         except Exception as e:
             st.error(f"Something went wrong: {e}")
