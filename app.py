@@ -6,6 +6,7 @@ import json
 import os
 from Track_plot import plot_track_map_plotly
 from plotly_functions import (
+    plot_laptimes,
     plot_speed_plotly,
     plot_longitudinal_acceleration_plotly,
     plot_throttle_brake_plotly,
@@ -106,6 +107,7 @@ session_type = st.selectbox("Session", ["Q", "R", "FP1", "FP2", "FP3"])
 # Get drivers (instant if cached)
 drivers = get_drivers_for_event(year, gp, session_type)
 
+
 # Default selection
 if "driver_selection" not in st.session_state:
     st.session_state.driver_selection = drivers[0][0] if drivers else ""
@@ -165,6 +167,7 @@ if st.button("Load Fastest Lap"):
                 progress.progress(80)
 
                 plot_track_map_plotly(year, gp, session_type, selected_driver, highlight_corners=True)
+                plot_laptimes(telemetry_driver, session_type)
                 plot_speed_plotly(telemetry_driver)
                 plot_longitudinal_acceleration_plotly(telemetry_driver)
                 plot_throttle_brake_plotly(telemetry_driver)
