@@ -134,12 +134,15 @@ def plot_drs_plotly(telemetry_driver):
     )
     st.plotly_chart(fig, use_container_width=True)
     
-def plot_laptimes(telemetry_driver, session_type):
+def plot_laptimes(session, driver_code):
+
     fig = go.Figure()
 
-    # Get compound colors from FastF1
-    compound_colors = fastf1.plotting.get_compound_mapping(session=session_type)
-    driver_laps = session_type.laps.pick_drivers(telemetry_driver).pick_quicklaps().reset_index()
+    # Get compound colors
+    compound_colors = fastf1.plotting.get_compound_mapping(session=session)
+
+    # Get driver laps
+    driver_laps = session.laps.pick_driver(driver_code).pick_quicklaps().reset_index()
 
     # Add a trace for each compound (like hue in seaborn)
     for compound, group in driver_laps.groupby("Compound"):
@@ -149,7 +152,7 @@ def plot_laptimes(telemetry_driver, session_type):
             mode="markers+lines",   # dots + connected lines
             marker=dict(size=8),
             line=dict(width=1),
-            name=compound,
+            name=f"{driver_code} - {compound}",
             marker_color=compound_colors[compound]
         ))
 

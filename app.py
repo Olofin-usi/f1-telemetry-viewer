@@ -167,7 +167,8 @@ if st.button("Load Fastest Lap"):
                 progress.progress(80)
 
                 plot_track_map_plotly(year, gp, session_type, selected_driver, highlight_corners=True)
-                plot_laptimes(telemetry_driver, session_type)
+                fig = plot_laptimes(session, selected_driver)
+                st.plotly_chart(fig, use_container_width=True)
                 plot_speed_plotly(telemetry_driver)
                 plot_longitudinal_acceleration_plotly(telemetry_driver)
                 plot_throttle_brake_plotly(telemetry_driver)
