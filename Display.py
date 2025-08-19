@@ -3,6 +3,8 @@ from fastf1 import plotting
 import numpy as np
 from matplotlib import pyplot as plt
 
+
+
 session_race = fastf1.get_session(2023, 'Silverstone', 'R')
 session_race.load()
 # We choose the driver and obtain his best lap
@@ -14,6 +16,7 @@ v = telemetry_driver['Speed'] / 3.6    # Speed in m/s
 time_float = telemetry_driver['Time'] / np.timedelta64(1, 's')    # Time as a float variable
 ver_laps = session_race.laps.pick_drivers('VER')
 Car_data = ver_laps.get_telemetry().add_distance() # getting the fastest drivers telemetry from the car_data field 
+
 
 
 
@@ -64,6 +67,6 @@ axes[4].set_yticks([0, 1])
 axes[4].set_yticklabels(['OFF', 'ON']) # manually set the axis to just say on or Off
 axes[4].legend()
 
-
+# Using plain matplotlib instead of seaborn
 
 plt.show()
