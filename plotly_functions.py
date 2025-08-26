@@ -136,49 +136,49 @@ def plot_drs_plotly(telemetry_driver):
     st.plotly_chart(fig, use_container_width=True)
     
 def plot_laptimes(session, driver_code):
-    # Create a new empty Plotly figure
+    import plotly.graph_objects as go
+
     fig = go.Figure()
 
-    # Get mapping of tire compounds to colors (so each compound has a consistent color)
+    # Get tire compound colors
     compound_colors = fastf1.plotting.get_compound_mapping(session=session)
 
-    # Get all laps for the driver, filtered to "quick laps" (ignores in/out laps, pit laps, etc.)
+    # Get laps for selected driver
     driver_laps = session.laps.pick_driver(driver_code).pick_quicklaps().reset_index()
-    
-    
+
     # Convert LapTime to seconds
     driver_laps["LapTimeSeconds"] = driver_laps["LapTime"].dt.total_seconds()
 
-    # Loop through each tire compound the driver used
+    # Plot each compound
     for compound, group in driver_laps.groupby("Compound"):
-        # Add lap times as a scatter trace with markers + lines
         fig.add_trace(go.Scatter(
-            x=group["LapNumber"],        # X-axis: lap number
-            y=group["LapTimeSeconds"],          # Y-axis: lap time
-            mode="markers+lines",        # Show both dots and connecting lines
-            marker=dict(size=8),         # Size of dots
-            line=dict(width=1),          # Line thickness
-            name=f"{driver_code} - {compound}",  # Legend label
+            x=group["LapNumber"],
+            y=group["LapTimeSeconds"],     # ✅ use seconds
+            mode="markers+lines",
+            marker=dict(size=8),
+            line=dict(width=1),
+            name=f"{driver_code} - {compound}",
             marker_color=compound_colors.get(compound, "white")
         ))
-        
-        
-    # Format Y-axis ticks as mm:ss.s
+
+    # Format axis ticks as mm:ss.s
+    ticks = sorted(driver_laps["LapTimeSeconds"].round(1).unique())
+    tick_labels = [f"{int(t//60)}:{t%60:05.2f}" for t in ticks]
+
     fig.update_yaxes(
-        autorange="reversed",
-        tickvals=driver_laps["LapTimeSeconds"].round(1).unique(),
-        ticktext=[
-            f"{int(t//60)}:{t%60:05.2f}" for t in driver_laps["LapTimeSeconds"].round(1).unique()
-        ]
+        autorange="reversed",            # 
+        tickvals=ticks,
+        ticktext=tick_labels
     )
 
-    # Style the layout of the plot
     fig.update_layout(
-        template="plotly_dark",          # Dark theme for the chart
-        xaxis_title="Lap Number",        # Label for x-axis
-        yaxis_title="Lap Time (s)",          # Label for y-axis
-        height=500,                      # Chart height
-        legend_title="Compound"          # Title for legend
+        template="plotly_dark",
+        xaxis_title="Lap Number",
+        yaxis_title="Lap Time",
+        height=500,
+        legend_title="Driver - Compound"
     )
-    return fig  # Return the finished figure
+
+    return fig
+
 
