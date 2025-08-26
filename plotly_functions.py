@@ -180,9 +180,5 @@ def plot_laptimes(session, driver_code):
         height=500,                      # Chart height
         legend_title="Compound"          # Title for legend
     )
-
-    # Reverse y-axis so faster laps (lower times) appear higher up
-    fig.update_yaxes(autorange="reversed")
-
     return fig  # Return the finished figure
 
