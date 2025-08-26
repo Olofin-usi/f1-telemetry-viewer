@@ -147,7 +147,7 @@ def plot_laptimes(session, driver_code):
     
     
     # Convert LapTime to seconds for proper plotting
-    group["LapTimeSeconds"] = group["LapTime"].dt.total_seconds()
+    driver_laps["LapTimeSeconds"] = driver_laps["LapTime"].dt.total_seconds()
 
     # Loop through each tire compound the driver used
     for compound, group in driver_laps.groupby("Compound"):
