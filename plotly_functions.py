@@ -146,7 +146,7 @@ def plot_laptimes(session, driver_code):
     driver_laps = session.laps.pick_driver(driver_code).pick_quicklaps().reset_index()
     
     
-    # Convert LapTime to seconds for proper plotting
+    # Convert LapTime to seconds
     driver_laps["LapTimeSeconds"] = driver_laps["LapTime"].dt.total_seconds()
 
     # Loop through each tire compound the driver used
@@ -159,8 +159,18 @@ def plot_laptimes(session, driver_code):
             marker=dict(size=8),         # Size of dots
             line=dict(width=1),          # Line thickness
             name=f"{driver_code} - {compound}",  # Legend label
-            marker_color=compound_colors[compound]  # Use F1 compound colors
+            marker_color=compound_colors.get(compound, "white")
         ))
+        
+        
+    # Format Y-axis ticks as mm:ss.s
+    fig.update_yaxes(
+        autorange="reversed",
+        tickvals=driver_laps["LapTimeSeconds"].round(1).unique(),
+        ticktext=[
+            f"{int(t//60)}:{t%60:05.2f}" for t in driver_laps["LapTimeSeconds"].round(1).unique()
+        ]
+    )
 
     # Style the layout of the plot
     fig.update_layout(
