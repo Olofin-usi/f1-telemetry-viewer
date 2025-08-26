@@ -144,13 +144,17 @@ def plot_laptimes(session, driver_code):
 
     # Get all laps for the driver, filtered to "quick laps" (ignores in/out laps, pit laps, etc.)
     driver_laps = session.laps.pick_driver(driver_code).pick_quicklaps().reset_index()
+    
+    
+    # Convert LapTime to seconds for proper plotting
+    group["LapTimeSeconds"] = group["LapTime"].dt.total_seconds()
 
     # Loop through each tire compound the driver used
     for compound, group in driver_laps.groupby("Compound"):
         # Add lap times as a scatter trace with markers + lines
         fig.add_trace(go.Scatter(
             x=group["LapNumber"],        # X-axis: lap number
-            y=group["LapTime"],          # Y-axis: lap time
+            y=group["LapTimeSeconds"],          # Y-axis: lap time
             mode="markers+lines",        # Show both dots and connecting lines
             marker=dict(size=8),         # Size of dots
             line=dict(width=1),          # Line thickness
@@ -162,7 +166,7 @@ def plot_laptimes(session, driver_code):
     fig.update_layout(
         template="plotly_dark",          # Dark theme for the chart
         xaxis_title="Lap Number",        # Label for x-axis
-        yaxis_title="Lap Time",          # Label for y-axis
+        yaxis_title="Lap Time (s)",          # Label for y-axis
         height=500,                      # Chart height
         legend_title="Compound"          # Title for legend
     )
