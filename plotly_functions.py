@@ -165,10 +165,10 @@ def plot_laptimes(session, driver_code):
     ticks = sorted(driver_laps["LapTimeSeconds"].round(1).unique())
     tick_labels = [f"{int(t//60)}:{t%60:05.2f}" for t in ticks]
 
+       # Clean Y-axis: automatic ticks, formatted mm:ss.s
     fig.update_yaxes(
-        autorange="reversed",            # 
-        tickvals=ticks,
-        ticktext=tick_labels
+        autorange=True,
+        tickformat="%M:%S.%L"   # minutes:seconds.milliseconds
     )
 
     fig.update_layout(
