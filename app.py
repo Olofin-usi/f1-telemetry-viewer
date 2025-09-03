@@ -182,7 +182,6 @@ if st.button("Load Fastest Lap"): # once you click a button to load their fastes
 
                 plot_track_map_plotly(year, gp, session_type, selected_driver, highlight_corners=True) # Now we call our plot_track map function
                 fig = plot_laptimes(session, selected_driver)
-                st.plotly_chart(fig, use_container_width=True)
                 plot_speed_plotly(telemetry_driver) # speed  plot
                 plot_longitudinal_acceleration_plotly(telemetry_driver) # acceleration plot
                 plot_throttle_brake_plotly(telemetry_driver) # Throttle Vs Brake plot 
