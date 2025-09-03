@@ -42,7 +42,9 @@ def get_drivers_for_event(year, gp, session_type): # here is where the actually 
     key = f"{year}::{gp}::{session_type}" # Driver_Db is a dictionary so in order to keep things organised a key, unique identifier  for that specific event/session.
     if key in DRIVER_DB: # since each call is stored in the database, if we make a call that has been made before we simply just have to retrive they key 
         return DRIVER_DB[key]
-    return [("???", "Unknown", "#999999")]
+    # Auto-fetch if not found
+    drivers = fetch_and_cache_drivers(year, gp, session_type)
+    return drivers
 
 def fetch_and_cache_drivers(year, gp, session_type):
     """Fetch real drivers from FastF1, save to DB."""
