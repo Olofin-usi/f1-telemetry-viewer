@@ -4,12 +4,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 import Track_plot
 import plotly.graph_objects as go
+import plotly.express as px
 import plotly.io as pio
-
-
-import plotly.graph_objects as go
-import numpy as np
 import streamlit as st
+
 
 def plot_speed_plotly(telemetry_driver): # this a a plotly functions that retrieves the drivers speed from Fast f1 and plots it 
     fig = go.Figure()
@@ -149,38 +147,23 @@ def plot_laptimes(session, driver_code):
     # Convert LapTime to seconds
     driver_laps["LapTimeSeconds"] = driver_laps["LapTime"].dt.total_seconds()
 
-    # Plot each compound
-    for compound, group in driver_laps.groupby("Compound"):
-        fig.add_trace(go.Scatter(
-            x=group["LapNumber"],
-            y=group["LapTimeSeconds"],     # ✅ use seconds
-            mode="markers+lines",
-            marker=dict(size=8),
-            line=dict(width=1),
-            name=f"{driver_code} - {compound}",
-            marker_color=compound_colors.get(compound, "white")
-        ))
+    fig = px.scatter(
+    driver_laps,
+    x="LapNumber",
+    y="LapTimeSeconds",
+    color="Compound",
+    color_discrete_map=fastf1.plotting.get_compound_mapping(session=session),
+    size=[8]*len(driver_laps),  # marker size
+    title=f"{driver_code} Lap Times"
+)
 
-    # Build clean tick labels (every ~0.5s step)
-    ymin, ymax = driver_laps["LapTimeSeconds"].min(), driver_laps["LapTimeSeconds"].max()
-    step = 0.5  # tick spacing in seconds
-    ticks = list(np.arange(ymin, ymax + step, step))
-    tick_labels = [f"{int(t//60)}:{t%60:05.2f}" for t in ticks]
-
-
-       # Clean Y-axis: automatic ticks, formatted mm:ss.s
+    fig.update_traces(mode="markers+lines")
     fig.update_yaxes(
-        autorange=True,
-        tickformat="%M:%S.%L"   # minutes:seconds.milliseconds
+    autorange=True,
+    tickformat="%M:%S.%L"  # format axis ticks as mm:ss.sss
     )
+    st.plotly_chart(fig, use_container_width=True)
 
-    fig.update_layout(
-        template="plotly_dark",
-        xaxis_title="Lap Number",
-        yaxis_title="Lap Time",
-        height=500,
-        legend_title="Driver - Compound"
-    )
 
     return fig
 
