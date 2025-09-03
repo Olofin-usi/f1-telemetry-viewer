@@ -161,9 +161,12 @@ def plot_laptimes(session, driver_code):
             marker_color=compound_colors.get(compound, "white")
         ))
 
-    # Format axis ticks as mm:ss.s
-    ticks = sorted(driver_laps["LapTimeSeconds"].round(1).unique())
+    # Build clean tick labels (every ~0.5s step)
+    ymin, ymax = driver_laps["LapTimeSeconds"].min(), driver_laps["LapTimeSeconds"].max()
+    step = 0.5  # tick spacing in seconds
+    ticks = list(np.arange(ymin, ymax + step, step))
     tick_labels = [f"{int(t//60)}:{t%60:05.2f}" for t in ticks]
+
 
        # Clean Y-axis: automatic ticks, formatted mm:ss.s
     fig.update_yaxes(
